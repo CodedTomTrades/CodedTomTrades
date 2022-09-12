@@ -1,18 +1,22 @@
 local maze = {}
-local pathWd = 10
-local wallHt = 12
-local wallHtPos = wallHt/2
+local pathWidth = 10
+
+local wallHeight = 12
+local wallHeightPosition = wallHeight/2
 local wallThick = 2
-local wallLen = pathWd + 2*wallThick
-local wallOffset = pathWd/2+wallThick/2
-local floorHt = 1
-local floorHtPos = floorHt/2
-local floorTileDist = pathWd + wallThick
+local wallLength = pathWidth + 2*wallThick
+local wallOffset = pathWidth/2+wallThick/2
+
+local floorHeight = 1
+local floorHeightPosition = floorHeight/2
+local floorTileDistance = pathWidth + wallThick
+
 local stack = {}
-table.insert(stack, { zVal=0, xVal=0 })
-local cols = 12
+table.insert(stack, { zValue=0, xValue=0 })
+local columns = 12
 local rows = 12
-local rnd = Random.new()
+local random = Random.new()
+
 local function createEnd()
 	for i, v in ipairs(workspace:GetChildren()) do
 		if v:IsA("Part") and v.Position == Vector3.new(132, 6, 138) then
@@ -21,6 +25,7 @@ local function createEnd()
 		end
 	end
 end
+
 local function createPart(x, y, z, px, py, pz)
 	local part = Instance.new("Part", workspace)
 	part.Anchored = true
@@ -29,57 +34,65 @@ local function createPart(x, y, z, px, py, pz)
 	part.TopSurface = Enum.SurfaceType.Smooth
 	return part
 end
+
 local function createFloor()
-	for z=0, rows-1, 1 do
+	for z = 0, rows - 1, 1 do
 		maze[z] = {}
-		for x=0, cols-1, 1 do
-			local posX = x*floorTileDist
-			local posZ = z*floorTileDist
-			local part = createPart(pathWd, floorHt, pathWd, posX, floorHtPos, posZ)
+		for x=0, columns-1, 1 do
+			local positionX = x*floorTileDistance
+			local positionZ = z*floorTileDistance
+			local part = createPart(pathWidth, floorHeight, pathWidth, positionX, floorHeightPosition, positionZ)
 			maze[z][x] = { tile=part }
 		end
 	end
 end
+
 local function createWalls()
-	for z=0, rows-1, 1 do
-		for x=0, cols-1, 1 do
-			local posX = x*floorTileDist+wallOffset
-			local posZ = z*floorTileDist
-			local part = createPart(wallThick, wallHt, wallLen, posX, wallHtPos, posZ)
+	for z = 0, rows - 1, 1 do
+		for x = 0, columns - 1, 1 do
+			-- east walls
+			local positionX = x*floorTileDistance+wallOffset
+			local positionZ = z*floorTileDistance
+			local part = createPart(wallThick, wallHeight, wallLength, positionX, wallHeightPosition, positionZ)
 			maze[z][x].eastWall = part
 			if maze[z][x+1] then
 				maze[z][x+1].westWall = part
 			end
-			local posX = x*floorTileDist
-			local posZ = z*floorTileDist+wallOffset
-			local part = createPart(wallLen, wallHt, wallThick, posX, wallHtPos, posZ)
+			-- south walls
+			local positionX = x*floorTileDistance
+			local positionZ = z*floorTileDistance+wallOffset
+			local part = createPart(wallLength, wallHeight, wallThick, positionX, wallHeightPosition, positionZ)
 			maze[z][x].southWall = part
 			if maze[z+1] then
 				maze[z+1][x].northWall = part
 			end
-			if x==0 then
-				local posX = -wallOffset
-				local posZ = z*floorTileDist
-				createPart(wallThick, wallHt, wallLen, posX, wallHtPos, posZ)	
+			-- edge along west
+			if x == 0 then
+				local positionX = -wallOffset
+				local positionZ = z*floorTileDistance
+				createPart(wallThick, wallHeight, wallLength, positionX, wallHeightPosition, positionZ)	
 			end
-			if z==0 and x~=0 then
-				local posX = x*floorTileDist
-				local posZ = -wallOffset
-				createPart(wallLen, wallHt, wallThick, posX, wallHtPos, posZ)				
+			-- edge along north
+			if z == 0 and x ~= 0 then
+				local positionX = x*floorTileDistance
+				local positionZ = -wallOffset
+				createPart(wallLength, wallHeight, wallThick, positionX, wallHeightPosition, positionZ)				
 			end
 		end
 	end
 end
+--Function to remove walls for the maze
 local function removeWall(wall)
-	local s = wall.Size
-	local p = wall.Position
-	wall.Size = Vector3.new(s.X, floorHt, s.Z)
-	wall.Position = Vector3.new(p.X, floorHtPos, p.Z)
+	local size = wall.Size
+	local position = wall.Position
+	wall.Size = Vector3.new(size.X, floorHeight, size.Z)
+	wall.Position = Vector3.new(position.X, floorHeightPosition, position.Z)
 	wall.BrickColor = BrickColor.White()
 end
+--Function to redraw the maze if its impossible
 local function redrawMaze()
-	for z=0, rows-1, 1 do
-		for x=0, cols-1, 1 do
+	for z = 0, rows - 1, 1 do
+		for x = 0, columns - 1, 1 do
 			local cell = maze[z][x]
 			if cell.visited then
 				cell.tile.BrickColor = BrickColor.White()
@@ -99,60 +112,68 @@ local function redrawMaze()
 		end	
 	end
 end
+--get a cell neighbour thats unvisted so we can create the rest of the maze
 local function getUnVisitedNeighbor(z, x)
-	local neighbors = {} 
-	if maze[z-1] and not maze[z-1][x].visited then
+	local neighbors = {} -- north:0, east:1, south:2, west:3
+	-- north
+	if maze[z - 1] and not maze[z - 1][x].visited then
 		table.insert(neighbors, 0)
 	end
-	if maze[z][x+1] and not maze[z][x+1].visited then
+	-- east
+	if maze[ z ][x + 1] and not maze[z][x + 1].visited then
 		table.insert(neighbors, 1)
 	end
-	if maze[z+1] and not maze[z+1][x].visited then
+	-- south
+	if maze[z + 1] and not maze[z + 1][x].visited then
 		table.insert(neighbors, 2)
 	end
-	if maze[z][x-1] and not maze[z][x-1].visited then
+	-- west
+	if maze[z][x - 1] and not maze[z][x - 1].visited then
 		table.insert(neighbors, 3)
 	end
 	return neighbors
 end
+
 local function searchPath()
-	if stack==nil or #stack==0 then
+	if stack == nil or #stack == 0 then
 		return false
 	end
 	local stackCell = stack[#stack]
-	local x = stackCell.xVal
-	local z = stackCell.zVal
+	local x = stackCell.xValue
+	local z = stackCell.zValue
+
 	maze[z][x].tile.BrickColor = BrickColor.Green()
 	task.wait()
 	local neighbors = getUnVisitedNeighbor(z, x)
 	if #neighbors > 0 then
-		local idx = rnd:NextInteger(1, #neighbors)
-		local nextCellDir = neighbors[idx]
-		if nextCellDir == 0 then --north
+		local index = random:NextInteger(1, #neighbors)
+		local nextCellDirection = neighbors[index]
+		if nextCellDirection == 0 then --north
 			maze[z][x].northPath = true
-			maze[z-1][x].southPath = true
-			maze[z-1][x].visited = true
-			table.insert(stack, { zVal=z-1, xVal=x })
-		elseif nextCellDir == 1 then --east
+			maze[z - 1][x].southPath = true
+			maze[z - 1][x].visited = true
+			table.insert(stack, { zValue = z - 1, xValue = x })
+		elseif nextCellDirection == 1 then --east
 			maze[z][x].eastPath = true
-			maze[z][x+1].westPath = true
-			maze[z][x+1].visited = true
-			table.insert(stack, { zVal=z, xVal=x+1 })
-		elseif nextCellDir == 2 then --south
+			maze[z][x + 1].westPath = true
+			maze[z][x + 1].visited = true
+			table.insert(stack, { zValue = z, xValue = x + 1 })
+		elseif nextCellDirection == 2 then --south
 			maze[z][x].southPath = true
-			maze[z+1][x].northPath = true
-			maze[z+1][x].visited = true
-			table.insert(stack, { zVal=z+1, xVal=x })
-		elseif nextCellDir == 3 then --west
+			maze[z + 1][x].northPath = true
+			maze[z + 1][x].visited = true
+			table.insert(stack, { zValue = z + 1, xValue = x })
+		elseif nextCellDirection == 3 then --west
 			maze[z][x].westPath = true
-			maze[z][x-1].eastPath = true
-			maze[z][x-1].visited = true
-			table.insert(stack, { zVal=z, xVal=x-1 })
+			maze[z][x - 1].eastPath = true
+			maze[z][x - 1].visited = true
+			table.insert(stack, { zValue = z, xValue = x - 1 })
 		end
 	else
 		table.remove(stack, #stack)
 	end
 	return true
+
 end
 createFloor()
 createWalls()
